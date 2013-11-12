@@ -12,11 +12,26 @@
 #define LOG2(x, y)
 #endif
 
+static void *ssl_dlsym(const char *name)
+{
+	void *addr = dlsym(RTLD_NEXT, name);
+	if (addr == NULL) {
+		// Try again with a more specific name
+		// Needed for ejabberd
+		void *file = dlopen("libssl.so.1.0.0", RTLD_LAZY | RTLD_GLOBAL | RTLD_NOLOAD);
+		if (file != NULL) {
+			addr = dlsym(file, name);
+			dlclose(file);
+		}
+	}
+	return addr;
+}
+
 static int interposer_SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str)
 {
 	int (*orig_SSL_CTX_set_cipher_list)(SSL_CTX *, const char *);
 	LOG("libtlsinterposer.so:interposer_SSL_CTX_set_cipher_list() starting\n");
-	orig_SSL_CTX_set_cipher_list = dlsym(RTLD_NEXT, "SSL_CTX_set_cipher_list");
+	orig_SSL_CTX_set_cipher_list = ssl_dlsym("SSL_CTX_set_cipher_list");
 	if (orig_SSL_CTX_set_cipher_list == NULL) {
 		fprintf(stderr, "libtlsinterposer.so:interposer_SSL_CTX_set_cipher_list() cannot find SSL_CTX_set_cipher_list()\n");
 		return 0;
@@ -45,7 +60,7 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method)
 {
 	SSL_CTX *(*orig_SSL_CTX_new)(const SSL_METHOD*);
 	SSL_CTX *ctx;
-	orig_SSL_CTX_new = dlsym(RTLD_NEXT, "SSL_CTX_new");
+	orig_SSL_CTX_new = ssl_dlsym("SSL_CTX_new");
 	if (orig_SSL_CTX_new == NULL) {
 		fprintf(stderr, "libtlsinterposer.so:SSL_CTX_new() is NULL\n");
 		return NULL;

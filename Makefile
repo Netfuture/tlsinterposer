@@ -1,7 +1,7 @@
-LIB	= libtlsinterposer.so
+LIB	= tlsinterposer.so
 CFILES	= tlsinterposer.c
 
 all:	${LIB}
 
-libtlsinterposer.so: ${CFILES}
+${LIB}: ${CFILES}
 	gcc -g -Wall -fPIC -shared -o ${LIB} ${CFILES} -ldl
