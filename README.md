@@ -1,5 +1,5 @@
-TLSinterposer
-=============
+TLS Interposer
+==============
 
 OpenSSL library interposer to get software to use more secure TLS protocol variants.
 
@@ -9,7 +9,7 @@ Functionality
 2. Enables ECDHE algorithms
 3. Disables all weak algorithms, including RC4
 
-The cipher selection is according to Qualys SSLlabs recommendations and can be changed through the TLS_INTERPOSER_CIPERS environment variable.
+The cipher selection is according to Qualys SSLlabs recommendations and can be changed through the TLS_INTERPOSER_CIPERS environment variable, e.g. if you want to re-enable some RC4 algorithms.
 
 Usage
 -----
@@ -18,3 +18,6 @@ Start the process with LD_PRELOAD environment variable set to /path/to/libtlsint
 	env LD_PRELOAD=/usr/local/lib/libtlsinterposer.so apache2ctl start
 
 enables Apache 2.2 to use the modern ciphers.
+
+More information and documentation is available at https://netfuture.ch/tools/tls-interposer/
+
