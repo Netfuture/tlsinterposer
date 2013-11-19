@@ -11,11 +11,15 @@ Functionality
 
 The cipher selection is according to Qualys SSLlabs recommendations and can be changed through the TLS_INTERPOSER_CIPERS environment variable, e.g. if you want to re-enable some RC4 algorithms.
 
+Installation
+------------
+Download, make, make install.
+
 Usage
 -----
-Start the process with LD_PRELOAD environment variable set to /path/to/libtlsinterposer.so . For example,
+Start the process with LD_PRELOAD environment variable set to /path/to/tlsinterposer.so . For example,
 
-	env LD_PRELOAD=/usr/local/lib/libtlsinterposer.so apache2ctl start
+	env LD_PRELOAD=/usr/local/lib/tlsinterposer.so apache2ctl start
 
 enables Apache 2.2 to use the modern ciphers.
 
