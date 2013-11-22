@@ -10,3 +10,5 @@ install:${LIB}
 
 ${LIB}: ${CFILES}
 	gcc -g -Wall -fPIC -shared -o ${LIB} ${CFILES} -ldl
+
+# vim: set noexpandtab tabstop=4 :
