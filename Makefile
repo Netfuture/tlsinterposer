@@ -1,15 +1,20 @@
-LIB	= tlsinterposer.so
-CFILES	= tlsinterposer.c
+PROJECT = tlsinterposer
+
+SHAREDLIB = tlsinterposer.so
+CFILES = tlsinterposer.c
 PREFIX = /usr/local
-LIBDIR = ${PREFIX}/lib
+LIBDIR = $(PREFIX)/lib
 
-all:	${LIB}
+TARGETS = $(SHAREDLIB)
 
-install:${LIB}
-	install -m 644 ${LIB} ${LIBDIR}
 
-${LIB}: ${CFILES}
-	gcc -g -Wall -fPIC -shared -o ${LIB} ${CFILES} -ldl
+all:	$(TARGETS)
+
+install: $(SHAREDLIB)
+	install -m 644 $(SHAREDLIB) $(LIBDIR)
+
+$(SHAREDLIB): $(CFILES)
+	$(CC) -g -Wall -fPIC -shared -o $(SHAREDLIB) $(CFILES) -ldl
 
 clean:
 	find . -name "*.so" | xargs --no-run-if-empty rm -v
