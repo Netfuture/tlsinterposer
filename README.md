@@ -11,6 +11,8 @@ Functionality
 
 The cipher selection is according to Qualys SSLlabs recommendations and can be changed through the TLS_INTERPOSER_CIPERS environment variable, e.g. to completely disable RC4.
 
+OpenSSL compression can now be disabled by the existence of the TLS_INTERPOSER_NO_COMPRESSION environment variable.
+
 Installation
 ------------
 Download, make, make install.
