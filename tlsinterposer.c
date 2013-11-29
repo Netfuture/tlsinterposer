@@ -66,7 +66,7 @@ static int default_SSL_CTX_set_cipher_list(SSL_CTX *ctx)
 	if (ciphers == NULL) {
 		// Qualys recommendation (I know the RC4 part could be simplified)
 		// - https://community.qualys.com/blogs/securitylabs/2013/08/05/configuring-apache-nginx-and-openssl-for-forward-secrecy
-		ciphers = "EECDH+ECDSA+AESGCM:EECDH+aRSA+AESGCM:EECDH+ECDSA+SHA384:EECDH+ECDSA+SHA256:EECDH+aRSA+SHA384:EECDH+aRSA+SHA256:EECDH+aRSA+RC4:EECDH:EDH+aRSA:RC4:!aNULL:!eNULL:!LOW:!3DES:!MD5:!EXP:!PSK:!SRP:!DSS:!RC4";
+		ciphers = "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH EDH+aRSA RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS +RC4 RC4";
 	}
 	DEBUGLOG2("libtlsinterposer.so:default_SSL_CTX_set_cipher_list() using %s\n", ciphers);
 	return interposer_SSL_CTX_set_cipher_list(ctx, ciphers);

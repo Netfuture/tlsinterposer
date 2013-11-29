@@ -7,9 +7,9 @@ Functionality
 -------------
 1. Disables SSLv2 and SSLv3 (broken), enables everything else (starting at OpenSSL 1.0.1 up to TLS 1.2)
 2. Enables ECDHE algorithms
-3. Disables all weak algorithms, including RC4
+3. Disables all weak algorithms, including RC4 as a last resort
 
-The cipher selection is according to Qualys SSLlabs recommendations and can be changed through the TLS_INTERPOSER_CIPERS environment variable, e.g. if you want to re-enable some RC4 algorithms.
+The cipher selection is according to Qualys SSLlabs recommendations and can be changed through the TLS_INTERPOSER_CIPERS environment variable, e.g. to completely disable RC4.
 
 Installation
 ------------
