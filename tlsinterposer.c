@@ -88,7 +88,7 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method)
 	}
 	ctx = (*orig_SSL_CTX_new)(method);
 	if (ctx != NULL) {
-		SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
+		SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_SINGLE_DH_USE);
 		default_SSL_CTX_set_cipher_list(ctx);
 		// Based on code by Vincent Bernat
 		// - http://vincent.bernat.im/en/blog/2011-ssl-perfect-forward-secrecy.html
