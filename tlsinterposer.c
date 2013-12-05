@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <openssl/ssl.h>
+#include <openssl/dh.h>
 #include <dlfcn.h>
 
 #ifdef DEBUG
@@ -77,6 +78,26 @@ int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str)
 	return default_SSL_CTX_set_cipher_list(ctx);
 }
 
+// Based on code by Erwann Abalea
+// - https://issues.apache.org/bugzilla/show_bug.cgi?id=49559
+DH *read_DHparams(const char *filename)
+{
+	DH *rc;
+	BIO *bioS, *bioF;
+	if (filename == NULL)
+		return NULL;
+	if ((bioS=BIO_new_file(filename, "r")) == NULL)
+		return NULL;
+	if ((bioF = BIO_new(BIO_f_base64())) == NULL) {
+		BIO_free(bioS);
+		return NULL;
+	}
+	bioS = BIO_push(bioF, bioS);
+	rc = d2i_DHparams_bio(bioS, NULL);
+	BIO_free_all(bioS);
+	return rc;
+}
+
 SSL_CTX *SSL_CTX_new(const SSL_METHOD *method)
 {
 	SSL_CTX *(*orig_SSL_CTX_new)(const SSL_METHOD*);
@@ -102,6 +123,12 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method)
 		EC_KEY_free(ecdh);
 		DEBUGLOG("libtlsinterposer.so:ECDH Initialized with NIST P-256\n");
 #endif
+
+	DH *dh;
+	const char *dh_file = getenv("TLS_INTERPOSER_DH_PEM_FILE");
+	if ((dh = read_DHparams(dh_file)) != NULL)
+		if (SSL_CTX_set_tmp_dh(ctx, dh) == 0)
+			DEBUGLOG2("libtlsinterposer.so:Unable to set Diffie-Hellman parameters from %s\n", dh_file);
 	}
 	DEBUGLOG2("libtlsinterposer.so:SSL_CTX_new returning %p\n", ctx);
 	return ctx;
