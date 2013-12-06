@@ -133,3 +133,72 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method)
 	DEBUGLOG2("libtlsinterposer.so:SSL_CTX_new returning %p\n", ctx);
 	return ctx;
 }
+
+// Based on Apache's bug #49559 by Kaspar Brand
+// - https://issues.apache.org/bugzilla/show_bug.cgi?id=49559#c13
+/*
+ * Grab well-defined DH parameters from OpenSSL, see <openssl/bn.h>
+ * (get_rfc*) for all available primes.
+ */
+#define make_get_dh(rfc,size,gen) \
+static DH *get_dh##size(void) \
+{ \
+    DH *dh; \
+    if (!(dh = DH_new())) { \
+        return NULL; \
+    } \
+    dh->p = get_##rfc##_prime_##size(NULL); \
+    BN_dec2bn(&dh->g, #gen); \
+    if (!dh->p || !dh->g) { \
+        DH_free(dh); \
+        return NULL; \
+    } \
+    return dh; \
+}
+
+/*
+ * Prepare DH parameters from 1024 to 4096 bits, in 1024-bit increments
+ */
+make_get_dh(rfc2409, 1024, 2)
+make_get_dh(rfc3526, 2048, 2)
+make_get_dh(rfc3526, 3072, 2)
+make_get_dh(rfc3526, 4096, 2)
+
+static DH *ssl_callback_TmpDH(SSL *ssl, int export, int keylen)
+{
+	EVP_PKEY *pkey = SSL_get_privatekey(ssl);
+	int type = pkey ? EVP_PKEY_type(pkey->type) : EVP_PKEY_NONE;
+	if ((type == EVP_PKEY_RSA) || (type == EVP_PKEY_DSA)) {
+		keylen = EVP_PKEY_bits(pkey);
+	}
+	if (keylen >= 4096)
+		return get_dh4096();
+	else if (keylen >= 3072)
+		return get_dh3072();
+	else if (keylen >= 2048)
+		return get_dh2048();
+	else
+		return get_dh1024();
+}
+
+void SSL_CTX_set_tmp_dh_callback(SSL_CTX *ctx, DH *(*tmp_dh_callback)(SSL*ssl, int is_export, int keylength))
+{
+	void (*orig_SSL_CTX_set_tmp_dh_callback)(SSL_CTX *ctx, DH *(*tmp_dh_callback)(SSL*ssl, int is_export, int keylength));
+	orig_SSL_CTX_set_tmp_dh_callback = ssl_dlsym("SSL_CTX_set_tmp_dh_callback");
+	if (orig_SSL_CTX_set_tmp_dh_callback == NULL) {
+		DEBUGLOG("libtlsinterposer.so:SSL_CTX_set_tmp_dh_callback() is NULL\n");
+		return;
+	}
+	(*orig_SSL_CTX_set_tmp_dh_callback)(ctx, ssl_callback_TmpDH);
+}
+
+void SSL_set_tmp_dh_callback(SSL *ssl, DH *(*tmp_dh_callback)(SSL*ssl, int is_export, int keylength))
+{
+	void (*orig_SSL_set_tmp_dh_callback)(SSL *ssl, DH *(*tmp_dh_callback)(SSL*ssl, int is_export, int keylength));
+	orig_SSL_set_tmp_dh_callback = ssl_dlsym("SSL_set_tmp_dh_callback");
+	if (orig_SSL_set_tmp_dh_callback == NULL) {
+		DEBUGLOG("libtlsinterposer.so:SSL_set_tmp_dh_callback() is NULL\n");
+		return;
+	}
+	(*orig_SSL_set_tmp_dh_callback)(ssl, ssl_callback_TmpDH);
+}
