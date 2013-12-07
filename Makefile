@@ -9,4 +9,4 @@ install:${LIB}
 	install -m 644 ${LIB} ${LIBDIR}
 
 ${LIB}: ${CFILES}
-	gcc -g -Wall -fPIC -shared -o ${LIB} ${CFILES} -ldl -lssl
+	gcc -g -Wall -fPIC -shared -o ${LIB} ${CFILES} -ldl
