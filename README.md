@@ -12,9 +12,6 @@ Functionality
 The cipher selection is according to Qualys SSLlabs recommendations and can be changed through the TLS_INTERPOSER_CIPERS environment variable, e.g. to completely disable RC4.
 
 OpenSSL compression can now be disabled by the existence of the TLS_INTERPOSER_NO_COMPRESSION environment variable.
-With the environment variable TLS_INTERPOSER_DH_PEM_FILE a custom Diffie-Helman parameters can be set.
-To generate a 2048 bit DH parameters PEM file: openssl dhparam -out /etc/ssl/dh2048.pem 2048
-
 
 Installation
 ------------
