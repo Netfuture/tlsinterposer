@@ -1,0 +1,6 @@
+## binaries
+*.so
+
+## editor files
+*.swp
+*~

@@ -19,9 +19,9 @@ Download, make, make install.
 
 Usage
 -----
-Start the process with LD_PRELOAD environment variable set to /path/to/tlsinterposer.so . For example,
+Start the process with LD_PRELOAD environment variable set to /path/to/libtlsinterposer.so . For example,
 
-	env LD_PRELOAD=/usr/local/lib/tlsinterposer.so apache2ctl start
+	env LD_PRELOAD=/usr/local/lib/libtlsinterposer.so apache2ctl start
 
 enables Apache 2.2 to use the modern ciphers.
 
