@@ -46,7 +46,7 @@ static void *ssl_dlsym(const char *name)
 	if (addr == NULL) {
 		// Try again with a more specific name
 		// Needed for ejabberd
-		void *file = dlopen("libssl.so.1.0.0", RTLD_LAZY | RTLD_GLOBAL | RTLD_NOLOAD);
+		void *file = dlopen("libssl.so", RTLD_LAZY | RTLD_GLOBAL | RTLD_NOLOAD);
 		if (file != NULL) {
 			addr = dlsym(file, name);
 			dlclose(file);
