@@ -26,6 +26,12 @@
 #include <openssl/dh.h>
 #include <dlfcn.h>
 
+#ifdef __APPLE__
+#define SSLCONST
+#else
+#define SSLCONST const
+#endif
+
 #ifdef DEBUG
 #define DEBUGLOG(x)     fprintf(stderr, (x))
 #define DEBUGLOG2(x, y) fprintf(stderr, (x), (y))
@@ -78,9 +84,9 @@ int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str)
 	return default_SSL_CTX_set_cipher_list(ctx);
 }
 
-SSL_CTX *SSL_CTX_new(const SSL_METHOD *method)
+SSL_CTX *SSL_CTX_new(SSLCONST SSL_METHOD *method)
 {
-	SSL_CTX *(*orig_SSL_CTX_new)(const SSL_METHOD*);
+	SSL_CTX *(*orig_SSL_CTX_new)(SSLCONST SSL_METHOD*);
 	SSL_CTX *ctx;
 	orig_SSL_CTX_new = ssl_dlsym("SSL_CTX_new");
 	if (orig_SSL_CTX_new == NULL) {
@@ -90,7 +96,9 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method)
 	ctx = (*orig_SSL_CTX_new)(method);
 	if (ctx != NULL) {
 		long options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_SINGLE_DH_USE;
+#ifdef SSL_OP_NO_COMPRESSION
 		if (getenv("TLS_INTERPOSER_NO_COMPRESSION") != NULL) options |= SSL_OP_NO_COMPRESSION;
+#endif
 		SSL_CTX_set_options(ctx, options);
 		default_SSL_CTX_set_cipher_list(ctx);
 		// Based on code by Vincent Bernat
