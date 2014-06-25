@@ -7,6 +7,8 @@ MAJOR = $(word 1, $(subst ., , $(VERSION)))
 SHAREDLIB = lib$(PROJECT).so
 SONAME    = $(SHAREDLIB).$(MAJOR)
 CFILES = tlsinterposer.c
+GENHDR = ssl-version.h
+HFILES = $(GENHDR)
 PREFIX = /usr/local
 LIBDIR = $(PREFIX)/lib
 INSTALL = install
@@ -25,12 +27,14 @@ install: $(SHAREDLIB)
 	ln -s $(SHAREDLIB).$(VERSION) $(DESTDIR)$(LIBDIR)/$(SONAME)
 	ln -s $(SONAME) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB)
 
+ssl-version.h:
+	ldconfig -p | sed -n -e 's/^\t*\(libssl\.so\.[0-9]\.[0-9]\.[0-9]\).*/#define DEFAULT_SSLLIB "\1"/p' > $@
 
-$(SHAREDLIB): $(CFILES)
+$(SHAREDLIB): $(CFILES) $(HFILES)
 	$(CC) -g -Wall -fPIC -shared -o $(SHAREDLIB) $(CFILES) -ldl
 
 clean:
-	find . -name "*.so" | xargs --no-run-if-empty rm -v
+	find . \( -name "*.so" $(patsubst %.h,-o -name %.h,$(GENHDR)) \) -print0 | xargs -0 --no-run-if-empty rm -v
 
 distclean: clean
 
