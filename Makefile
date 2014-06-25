@@ -1,7 +1,7 @@
 PROJECT = tlsinterposer
 
 ## The version is based on the last tag set on the current branch.
-VERSION = $(shell git describe --tags | cut -f1 -d '-' | sed 's/^v//' )
+VERSION = $(shell ./version.sh)
 MAJOR = $(word 1, $(subst ., , $(VERSION)))
 
 SHAREDLIB = lib$(PROJECT).so
