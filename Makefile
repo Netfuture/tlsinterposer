@@ -24,8 +24,8 @@ all:	$(TARGETS) install
 install: $(SHAREDLIB)
 	mkdir -p $(DESTDIR)$(LIBDIR)
 	$(INSTALL) -p -m755 $(SHAREDLIB) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB).$(VERSION)
-	ln -s $(SHAREDLIB).$(VERSION) $(DESTDIR)$(LIBDIR)/$(SONAME)
-	ln -s $(SONAME) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB)
+	ln -sf $(SHAREDLIB).$(VERSION) $(DESTDIR)$(LIBDIR)/$(SONAME)
+	ln -sf $(SONAME) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB)
 
 ssl-version.h:
 	ldconfig -p | sed -n -e 's/^\t*\(libssl\.so\.[0-9]\.[0-9]\.[0-9]\).*/#define DEFAULT_SSLLIB "\1"/p' > $@
