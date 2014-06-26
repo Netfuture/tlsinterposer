@@ -4,3 +4,6 @@
 ## editor files
 *.swp
 *~
+
+## generated files
+ssl-version.h

@@ -27,7 +27,7 @@ install: $(SHAREDLIB)
 	ln -sf $(SHAREDLIB).$(VERSION) $(DESTDIR)$(LIBDIR)/$(SONAME)
 	ln -sf $(SONAME) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB)
 
-ssl-version.h:
+ssl-version.h: CHANGES.txt
 	ldconfig -p | sed -n -e 's/^\t*\(libssl\.so\.[0-9]\.[0-9]\.[0-9]\).*/#define DEFAULT_SSLLIB "\1"/p' > $@
 
 $(SHAREDLIB): $(CFILES) $(HFILES)
