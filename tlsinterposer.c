@@ -42,6 +42,7 @@
  * - debug                  be verbose
  * - ssllib=                full name of libssl.so.X.Y.Z
  * - -comp                  disable compression
+ * - -rc4                   remove RC4 from default (!) ciphers
  * - +sslv2		    enable SSLv2 (strongly advised against)
  * - +sslv3		    enable SSLv3 (advised against)
  * - -tlsv1                 disable TLSv1, leaving TLSv1.1 and TLSv1.2, if supported
@@ -53,6 +54,7 @@
 // Qualys recommendation (I know the RC4 part could be simplified)
 // - https://community.qualys.com/blogs/securitylabs/2013/08/05/configuring-apache-nginx-and-openssl-for-forward-secrecy
 #define DEFAULT_CIPHERS "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH EDH+aRSA RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS +RC4 RC4"
+#define CIPHERS_NO_RC4 "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH EDH+aRSA RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS +RC4 RC4 !RC4"
 
 #define LOGPREFIX "libtlsinterposer.so: "
 #define ERRORLOG(...) fprintf(stderr, LOGPREFIX __VA_ARGS__)
@@ -87,9 +89,6 @@ static void interposer_parse_opts(void)
 	// so an at-least-once semantic is used (increment at the end of the function)
 	if (interposer_inited > 0) return;
 
-	ciphers = getenv("TLS_INTERPOSER_CIPHERS");
-	if (ciphers != NULL) interposer_ciphers = ciphers;
-
 	opts = getenv("TLS_INTERPOSER_OPTIONS");
 	if (opts == NULL) return;
 	/* Non-destructive strtok() clone */
@@ -116,6 +115,8 @@ static void interposer_parse_opts(void)
 		} else if (strncasecmp(opts, "-comp", optlen) == 0) {
 			interposer_opt_set |= SSL_OP_NO_COMPRESSION;
 #endif
+		} else if (strncasecmp(opts, "-rc4", optlen) == 0) {
+			interposer_ciphers = CIPHERS_NO_RC4;
 		} else if (strncasecmp(opts, "-ecdhe", optlen) == 0) {
 			interposer_opt_set &= ~SSL_OP_SINGLE_DH_USE;
 			interposer_opt_clr |= SSL_OP_SINGLE_DH_USE;
@@ -131,6 +132,10 @@ static void interposer_parse_opts(void)
 	if (getenv("TLS_INTERPOSER_NO_COMPRESSION") != NULL)
 		 interposer_opt_set |= SSL_OP_NO_COMPRESSION;
 #endif
+	// Higher priority than -rc4 above
+	ciphers = getenv("TLS_INTERPOSER_CIPHERS");
+	if (ciphers != NULL) interposer_ciphers = ciphers;
+
 	interposer_inited++;
 }
 

@@ -12,3 +12,6 @@ Changes
 		Configuration through TLS_INTERPOSER_OPTIONS
 		More consistent enabling of ECDHE
 		More hooks used to tighten security
+
+1.2.1	2014-06-27
+		Add -rc4 option to eliminate most needs to manually define TLS_INTERPOSER_CIPHERS

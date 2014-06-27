@@ -12,11 +12,12 @@ Functionality
 Environment Variables
 ---------------------
 * `LD_PRELOAD`: Used by ld.so, should be set to /full/path/to/tlsinterposer.so
-* `TLS_INTERPOSER_CIPHERS`: The ciphers to use, defaults to Qualys SSLlabs recommendations including RC4 as a last resort
+* `TLS_INTERPOSER_CIPHERS`: The ciphers to use, defaults to Qualys SSLlabs recommendations
 * `TLS_INTERPOSER_OPTIONS`: Comma-separated list of options
   - `debug`: Be verbose on stderr
   - `ssllib=`: Full name of libssl.so.X.Y.Z, if not autodetected correctly
   - `-comp`: Disable compression
+  - `-rc4`: Changes the default ciphers from Qualys recommendations with to without RC4 (has no effect on TLS_INTERPOSER_CIPHERS)
   - `-ecdhe`: Disable forward secrecy (ephemeral keys)
   - `-tlsv1`: Disable TLSv1, leaving TLSv1.1 and TLSv1.2, if supported
   - `+sslv3`: Reenable SSLv3 (advised against)
