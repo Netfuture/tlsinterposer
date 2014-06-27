@@ -1,7 +1,7 @@
 PROJECT = tlsinterposer
 
 ## The version is based on the last tag set on the current branch.
-VERSION = $(shell ./version.sh)
+VERSION = $(shell sed -n -e 's/^\([0-9]*\.[0-9]*\.[0-9]*\).*/\1/p' CHANGES.txt | tail -1)
 MAJOR = $(word 1, $(subst ., , $(VERSION)))
 
 SHAREDLIB = lib$(PROJECT).so
