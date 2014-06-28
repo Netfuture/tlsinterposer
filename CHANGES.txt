@@ -14,4 +14,5 @@ Changes
 		More hooks used to tighten security
 
 1.2.1	2014-06-27
-		Add -rc4 option to eliminate most needs to manually define TLS_INTERPOSER_CIPHERS
+		Add -rc4; eliminate most uses of TLS_INTERPOSER_CIPHERS
+		Optionally log to /var/log/tlsinterposer.log

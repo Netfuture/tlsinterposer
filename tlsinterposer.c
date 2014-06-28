@@ -20,9 +20,12 @@
     USA
 */
 #define _GNU_SOURCE
+#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
+#include <time.h>
 #include <openssl/ssl.h>
 #include <openssl/dh.h>
 #include <dlfcn.h>
@@ -40,6 +43,7 @@
  * TLS_INTERPOSER_CIPHERS   defaults to DEFAULT_CIPHERS below
  * TLS_INTERPOSER_OPTIONS   comma-separated list of options
  * - debug                  be verbose
+ * - logfile                log to /var/log/tlsinterposer.log instead of stderr
  * - ssllib=                full name of libssl.so.X.Y.Z
  * - -comp                  disable compression
  * - -rc4                   remove RC4 from default (!) ciphers
@@ -56,28 +60,50 @@
 #define DEFAULT_CIPHERS "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH EDH+aRSA RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS +RC4 RC4"
 #define CIPHERS_NO_RC4 "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH EDH+aRSA RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS +RC4 RC4 !RC4"
 
-#define LOGPREFIX "libtlsinterposer.so: "
-#define ERRORLOG(...) fprintf(stderr, LOGPREFIX __VA_ARGS__)
+#define LOGFILE "/var/log/tlsinterposer.log"
+#define ERRORLOG(...) interposer_log(__VA_ARGS__)
 #ifdef NDEBUG
 #define DEBUGLOG(...)
 #else
-#define DEBUGLOG(...) do {if (interposer_debug != 0) ERRORLOG(__VA_ARGS__);} while (0)
+#define DEBUGLOG(...) do {if (interposer_debug != 0) interposer_log(__VA_ARGS__);} while (0)
 #endif
 
 // interposer_debug, used by DEBUGLOG(), is only valid after the first call to interposer_dlsym()
 #define ORIG_FUNC(func, rettype, args, fail)					\
 	static rettype (*orig_ ## func) args;					\
 	if (orig_ ## func == NULL) orig_ ## func = interposer_dlsym( #func );	\
-	DEBUGLOG("Intercepted function %s\n", __func__);			\
+	DEBUGLOG("Intercepted call to %s\n", __func__);			\
 	if (orig_ ## func == NULL) return fail;
 
-
-static int   interposer_inited     = 0;
-static int   interposer_opt_set    = (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_SINGLE_DH_USE),
+static int   interposer_inited     = 0,
+             interposer_opt_set    = (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_SINGLE_DH_USE),
 	     interposer_opt_clr    = 0,
-	     interposer_debug      = 0;
+	     interposer_debug      = 0,
+	     interposer_tofile     = 0;
 static char *interposer_ssllib     = DEFAULT_SSLLIB,
 	    *interposer_ciphers    = DEFAULT_CIPHERS;
+
+void interposer_log(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
+void interposer_log(const char *format, ...)
+{
+	FILE *log = stderr;
+	va_list ap;
+	time_t t;
+	struct tm tm;
+
+	t = time(NULL);
+	localtime_r(&t, &tm);
+	// Try to interfere as little as possible with the user program's fds
+	if (interposer_tofile != 0) log = fopen(LOGFILE, "a");
+	if (log == NULL) log = stderr;
+	va_start(ap, format);
+	// Fall back to stderr on problems
+	fprintf(log, "%04d-%02d-%02d %02d:%02d:%02d tlsinterposer[%d]: ",
+		tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, getpid());
+	vfprintf(log, format, ap);
+	va_end(ap);
+	if (log != stderr) fclose(log);
+}
 
 static void interposer_parse_opts(void)
 {
@@ -103,6 +129,8 @@ static void interposer_parse_opts(void)
 		}
 		if (strncasecmp(opts, "debug", optlen) == 0) {
 			interposer_debug++;
+		} else if (strncasecmp(opts, "logfile", optlen) == 0) {
+			interposer_tofile++;
 		} else if (strncasecmp(opts, "+sslv2", optlen) == 0) {
 			interposer_opt_set &= ~SSL_OP_NO_SSLv2;
 			interposer_opt_clr |= SSL_OP_NO_SSLv2;
@@ -174,29 +202,34 @@ int SSL_set_cipher_list(SSL *ssl, const char *str)
 	return (*orig_SSL_set_cipher_list)(ssl, interposer_ciphers);
 }
 
-#if 0
 // Make options in interposer_opt_{set,clr} sticky
-long SSL_CTX_set_options(SSL_CTX *ctx, long options)
+// SSL_{CTX_,}{set,clear}_options() are actually macros which map to SSL_{CTX_,}ctrl()
+long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
 {
-	ORIG_FUNC(SSL_CTX_set_options, long, (SSL_CTX *, long), 0);
-	return (*orig_SSL_CTX_set_options)(ctx, (options | interposer_opt_set) & ~interposer_opt_clr);
+	ORIG_FUNC(SSL_CTX_ctrl, long, (SSL_CTX *, int, long, void *), 0);
+	switch (cmd) {
+	case SSL_CTRL_OPTIONS:
+		larg = (larg | interposer_opt_set) & ~interposer_opt_clr;
+		break;
+	case SSL_CTRL_CLEAR_OPTIONS:
+		larg = (larg & ~interposer_opt_set) | interposer_opt_clr;
+		break;
+	}
+	return (*orig_SSL_CTX_ctrl)(ctx, cmd, larg, parg);
 }
-long SSL_set_options(SSL *ssl, long options)
+long SSL_ctrl(SSL *ssl, int cmd, long larg, void *parg)
 {
-	ORIG_FUNC(SSL_set_options, long, (SSL *, long), 0);
-	return (*orig_SSL_set_options)(ssl, (options | interposer_opt_set) & ~interposer_opt_clr);
+	ORIG_FUNC(SSL_ctrl, long, (SSL *, int, long, void *), 0);
+	switch (cmd) {
+	case SSL_CTRL_OPTIONS:
+		larg = (larg | interposer_opt_set) & ~interposer_opt_clr;
+		break;
+	case SSL_CTRL_CLEAR_OPTIONS:
+		larg = (larg & ~interposer_opt_set) | interposer_opt_clr;
+		break;
+	}
+	return (*orig_SSL_ctrl)(ssl, cmd, larg, parg);
 }
-long SSL_CTX_clear_options(SSL_CTX *ctx, long options)
-{
-	ORIG_FUNC(SSL_CTX_set_options, long, (SSL_CTX *, long), 0);
-	return (*orig_SSL_CTX_set_options)(ctx, (options | interposer_opt_clr) & ~interposer_opt_set);
-}
-long SSL_clear_options(SSL *ssl, long options)
-{
-	ORIG_FUNC(SSL_set_options, long, (SSL *, long), 0);
-	return (*orig_SSL_set_options)(ssl, (options | interposer_opt_clr) & ~interposer_opt_set);
-}
-#endif
 
 // Based on Apache's bug #49559 by Kaspar Brand
 // - https://issues.apache.org/bugzilla/show_bug.cgi?id=49559#c13

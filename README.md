@@ -14,7 +14,8 @@ Environment Variables
 * `LD_PRELOAD`: Used by ld.so, should be set to /full/path/to/tlsinterposer.so
 * `TLS_INTERPOSER_CIPHERS`: The ciphers to use, defaults to Qualys SSLlabs recommendations
 * `TLS_INTERPOSER_OPTIONS`: Comma-separated list of options
-  - `debug`: Be verbose on stderr
+  - `debug`: Be verbose, by default on stderr
+  - `logfile`: Log to /var/log/tlsinterposer.log; fall back to stderr
   - `ssllib=`: Full name of libssl.so.X.Y.Z, if not autodetected correctly
   - `-comp`: Disable compression
   - `-rc4`: Changes the default ciphers from Qualys recommendations with to without RC4 (has no effect on TLS_INTERPOSER_CIPHERS)
