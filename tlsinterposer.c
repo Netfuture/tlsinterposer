@@ -50,7 +50,6 @@
  * - +sslv2		    enable SSLv2 (strongly advised against)
  * - +sslv3		    enable SSLv3 (advised against)
  * - -tlsv1                 disable TLSv1, leaving TLSv1.1 and TLSv1.2, if supported
- * - -ecdhe                 disable forward secrecy
  * TLS_INTERPOSER_NO_COMPRESSION (DEPRECATED, please use "-comp" above instead;
  *			    disables TLS compression when set to any value, even an empty value)
 */
@@ -145,9 +144,6 @@ static void interposer_parse_opts(void)
 #endif
 		} else if (strncasecmp(opts, "-rc4", optlen) == 0) {
 			interposer_ciphers = CIPHERS_NO_RC4;
-		} else if (strncasecmp(opts, "-ecdhe", optlen) == 0) {
-			interposer_opt_set &= ~SSL_OP_SINGLE_DH_USE;
-			interposer_opt_clr |= SSL_OP_SINGLE_DH_USE;
 		} else if (optlen > 7 && strncasecmp(opts, "libssl=", 7) == 0) {
 			interposer_ssllib = opts+7;
 		} else if (interposer_debug) {
@@ -305,13 +301,11 @@ SSL_CTX *SSL_CTX_new(SSLCONST SSL_METHOD *method)
 		// - http://vincent.bernat.im/en/blog/2011-ssl-perfect-forward-secrecy.html
 		// - https://github.com/bumptech/stud/pull/61
 #ifdef NID_X9_62_prime256v1
-		if ((interposer_opt_clr & SSL_OP_SINGLE_DH_USE) != 0) {
-			EC_KEY *ecdh;
-			ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-			SSL_CTX_set_tmp_ecdh(ctx, ecdh);
-			EC_KEY_free(ecdh);
-			DEBUGLOG("ECDH Initialized with NIST P-256\n");
-		}
+		EC_KEY *ecdh;
+		ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+		SSL_CTX_set_tmp_ecdh(ctx, ecdh);
+		EC_KEY_free(ecdh);
+		DEBUGLOG("ECDH Initialized with NIST P-256\n");
 #endif
 	}
 	DEBUGLOG("SSL_CTX_new returning %p\n", ctx);
