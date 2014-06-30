@@ -46,6 +46,7 @@
  * - +sslv3		    enable SSLv3 (advised against)
  * - -tlsv1                 disable TLSv1, leaving TLSv1.1 and TLSv1.2, if supported
  * - -ecdhe                 disable forward secrecy
+ * - -ccert         disable client certificate requests on the server side
  * TLS_INTERPOSER_NO_COMPRESSION (DEPRECATED, please use "-comp" above instead;
  *			    disables TLS compression when set to any value, even an empty value)
 */
@@ -73,7 +74,8 @@
 static int   interposer_inited     = 0;
 static int   interposer_opt_set    = (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_SINGLE_DH_USE),
 	     interposer_opt_clr    = 0,
-	     interposer_debug      = 0;
+	     interposer_debug      = 0,
+         interposer_no_ccert    = 0;
 static char *interposer_ssllib     = DEFAULT_SSLLIB,
 	    *interposer_ciphers    = DEFAULT_CIPHERS;
 
@@ -119,6 +121,8 @@ static void interposer_parse_opts(void)
 		} else if (strncasecmp(opts, "-ecdhe", optlen) == 0) {
 			interposer_opt_set &= ~SSL_OP_SINGLE_DH_USE;
 			interposer_opt_clr |= SSL_OP_SINGLE_DH_USE;
+		} else if (strncasecmp(opts, "-ccert", optlen) == 0) {
+			interposer_no_ccert++;
 		} else if (optlen > 7 && strncasecmp(opts, "libssl=", 7) == 0) {
 			interposer_ssllib = opts+7;
 		} else if (interposer_debug) {
@@ -278,4 +282,25 @@ SSL_CTX *SSL_CTX_new(SSLCONST SSL_METHOD *method)
 	}
 	DEBUGLOG("SSL_CTX_new returning %p\n", ctx);
 	return ctx;
+}
+
+void SSL_CTX_set_verify(SSL_CTX *ctx, int mode,
+                        int (*verify_callback)(int, X509_STORE_CTX *))
+{
+	ORIG_FUNC(SSL_CTX_set_verify, void, (SSL_CTX *, int, int (*)(int, X509_STORE_CTX *)), /*void*/);
+    if (interposer_no_ccert != 0 && ctx->ssl->type == SSL_ST_ACCEPT) {
+        // Is server side, and we should disable requesting the client certificate
+        mode = SSL_VERIFY_NONE;
+    }
+	(*orig_SSL_CTX_set_verify)(ctx, mode, verify_callback);
+}
+void SSL_set_verify(SSL *ssl, int mode,
+                    int (*verify_callback)(int, X509_STORE_CTX *))
+{
+	ORIG_FUNC(SSL_set_verify, void, (SSL *, int, int (*)(int, X509_STORE_CTX *)), /*void*/);
+    if (interposer_no_ccert != 0 && ssl->type == SSL_ST_ACCEPT) {
+        // Is server side, and we should disable requesting the client certificate
+        mode = SSL_VERIFY_NONE;
+    }
+	(*orig_SSL_set_verify)(ssl, mode, verify_callback);
 }
