@@ -51,8 +51,6 @@
  * - +sslv3		    enable SSLv3 (advised against)
  * - -tlsv1                 disable TLSv1, leaving TLSv1.1 and TLSv1.2, if supported
  * - -ecdhe                 disable forward secrecy
- * TLS_INTERPOSER_NO_COMPRESSION (DEPRECATED, please use "-comp" above instead;
- *			    disables TLS compression when set to any value, even an empty value)
 */
 
 // Qualys recommendation (I know the RC4 part could be simplified)
@@ -155,11 +153,6 @@ static void interposer_parse_opts(void)
 		}
 		opts = optend;
 	}
-	// For backward compatibility, DEPRECATED
-#ifdef SSL_OP_NO_COMPRESSION
-	if (getenv("TLS_INTERPOSER_NO_COMPRESSION") != NULL)
-		 interposer_opt_set |= SSL_OP_NO_COMPRESSION;
-#endif
 	// Higher priority than -rc4 above
 	ciphers = getenv("TLS_INTERPOSER_CIPHERS");
 	if (ciphers != NULL) interposer_ciphers = ciphers;

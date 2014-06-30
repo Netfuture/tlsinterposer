@@ -16,3 +16,6 @@ Changes
 1.2.1	2014-06-27
 		Add -rc4; eliminate most uses of TLS_INTERPOSER_CIPHERS
 		Optionally log to /var/log/tlsinterposer.log
+
+1.2.2   2014-06-30
+        Eliminated support for deprecated TLS_INTERPOSER_NO_COMPRESSION
