@@ -5,7 +5,7 @@ Changes
 		First "official" release with version and license
 
 1.1.0	2013-12-12
-		Standarized DH parameters based on the length of the certificate's RSA/DSA key
+		Standardized DH parameters based on the length of the certificate's RSA/DSA key
 
 1.2.0	2014-06-26
 		Refactored the code to improve readability
