@@ -31,7 +31,10 @@
 #include <dlfcn.h>
 #include "ssl-version.h"
 
-#ifdef __APPLE__
+#ifndef SSL_OP_NO_COMPRESSION
+// SSL_OP_NO_COMPRESSION was apparently introduced at the same time
+// as the SSL_CTX_new() parameter became const (between 0.9.8<last> and 1.0.0).
+// Anyone has a better feature test macro?
 #define SSLCONST
 #else
 #define SSLCONST const
@@ -47,8 +50,8 @@
  * - ssllib=                full name of libssl.so.X.Y.Z
  * - -comp                  disable compression
  * - -rc4                   remove RC4 from default (!) ciphers
- * - +sslv2		    enable SSLv2 (strongly advised against)
- * - +sslv3		    enable SSLv3 (advised against)
+ * - +sslv2	                enable SSLv2 (strongly advised against)
+ * - +sslv3                 enable SSLv3 (advised against)
  * - -tlsv1                 disable TLSv1, leaving TLSv1.1 and TLSv1.2, if supported
  * - -ecdhe                 disable forward secrecy
 */

@@ -17,5 +17,6 @@ Changes
 		Add -rc4; eliminate most uses of TLS_INTERPOSER_CIPHERS
 		Optionally log to /var/log/tlsinterposer.log
 
-1.2.2   2014-06-30
+1.2.2   2014-07-04
         Eliminated support for deprecated TLS_INTERPOSER_NO_COMPRESSION
+        Support OpenSSL 0.9.8* on non-Apple platforms
