@@ -17,6 +17,7 @@ Environment Variables
   - `debug`: Be verbose on stderr
   - `ssllib=`: Full name of libssl.so.X.Y.Z, if not autodetected correctly
   - `-comp`: Disable compression
+  - `-ccert`: Prevent the server from asking for client certificates
   - `-ecdhe`: Disable forward secrecy (ephemeral keys)
   - `-tlsv1`: Disable TLSv1, leaving TLSv1.1 and TLSv1.2, if supported
   - `+sslv3`: Reenable SSLv3 (advised against)
