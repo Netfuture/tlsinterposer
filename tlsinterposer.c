@@ -31,15 +31,6 @@
 #include <dlfcn.h>
 #include "ssl-version.h"
 
-#ifndef SSL_OP_NO_COMPRESSION
-// SSL_OP_NO_COMPRESSION was apparently introduced at the same time
-// as the SSL_CTX_new() parameter became const (between 0.9.8<last> and 1.0.0).
-// Anyone has a better feature test macro?
-#define SSLCONST
-#else
-#define SSLCONST const
-#endif
-
 /* Environment variables used
  * ==========================
  * LD_PRELOAD		    used by ld.so, should be set to /full/path/to/tlsinterposer.so
@@ -56,10 +47,19 @@
  * - -ecdhe                 disable forward secrecy
 */
 
+#ifdef SSL_OP_NO_COMPRESSION // OpenSSL 1.0.0 or newer?
 // Qualys recommendation (I know the RC4 part could be simplified)
 // - https://community.qualys.com/blogs/securitylabs/2013/08/05/configuring-apache-nginx-and-openssl-for-forward-secrecy
 #define DEFAULT_CIPHERS "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH EDH+aRSA RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS +RC4 RC4"
 #define CIPHERS_NO_RC4 "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH EDH+aRSA RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS +RC4 RC4 !RC4"
+#define SSLCONST const
+#else
+// The OpenSSL 0.9.8 family only supports RC4-SHA with the above cipher lists
+// This prevents connecting to many servers which do not accept RC4 at all
+#define DEFAULT_CIPHERS "DHE-RSA-AES256-SHA AES256-SHA RC4-SHA"
+#define CIPHERS_NO_RC4 "DHE-RSA-AES256-SHA AES256-SHA"
+#define SSLCONST
+#endif
 
 #define LOGFILE "/var/log/tlsinterposer.log"
 #define ERRORLOG(...) interposer_log(__VA_ARGS__)
