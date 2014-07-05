@@ -13,6 +13,7 @@ PREFIX = /usr/local
 LIBDIR = $(PREFIX)/lib
 INSTALL = install
 DESTDIR =
+CFLAGS  = -g -Wall -O2
 
 TARGETS = $(SHAREDLIB)
 
@@ -31,7 +32,7 @@ ssl-version.h: CHANGES.txt
 	ldconfig -p | sed -n -e 's/^\t*\(libssl\.so\.[0-9]\.[0-9]\.[0-9]\).*/#define DEFAULT_SSLLIB "\1"/p' > $@
 
 $(SHAREDLIB): $(CFILES) $(HFILES)
-	$(CC) -g -Wall -fPIC -shared -o $(SHAREDLIB) $(CFILES) -ldl
+	$(CC) $(CFLAGS) -fPIC -shared -o $(SHAREDLIB) $(CFILES) -ldl
 
 clean:
 	find . \( -name "*.so" $(patsubst %.h,-o -name %.h,$(GENHDR)) \) -print0 | xargs -0 --no-run-if-empty rm -v
