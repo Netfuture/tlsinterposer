@@ -88,10 +88,27 @@ static char *interposer_ssllib     = DEFAULT_SSLLIB,
 void interposer_log(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
 void interposer_log(const char *format, ...)
 {
+    static char buf[1024];
+    static const char *progname = NULL;
 	FILE *log = stderr;
 	va_list ap;
 	time_t t;
 	struct tm tm;
+
+    // Try to obtain command name from /proc once; fall back to "?"
+    if (progname == NULL) {
+        if (readlink("/proc/self/exe", buf, sizeof(buf)-1) > 0) {
+            buf[sizeof(buf)-1] = '\0';
+            const char *tail = strrchr(buf, '/');
+            if (tail == NULL) {
+                progname = buf;
+            } else {
+                progname = tail+1;
+            }
+        } else {
+            progname = "?";
+        }
+    }
 
 	t = time(NULL);
 	localtime_r(&t, &tm);

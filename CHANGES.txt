@@ -25,4 +25,5 @@ Changes
         Removed (IMHO useless) -ecdhe option, reenabled ECDHE always
         More ciphers with OpenSSL 0.9.8
         New "-ccert" option
+        Debug output now includes process name
 
