@@ -33,7 +33,7 @@
 
 /* Environment variables used
  * ==========================
- * LD_PRELOAD		    used by ld.so, should be set to /full/path/to/tlsinterposer.so
+ * LD_PRELOAD               used by ld.so, should be set to /full/path/to/tlsinterposer.so
  * TLS_INTERPOSER_CIPHERS   defaults to DEFAULT_CIPHERS below
  * TLS_INTERPOSER_OPTIONS   comma-separated list of options
  * - debug                  be verbose
@@ -41,8 +41,8 @@
  * - ssllib=                full name of libssl.so.X.Y.Z
  * - -comp                  disable compression
  * - -rc4                   remove RC4 from default (!) ciphers
- * - -ccert         disable client certificate requests on the server side
- * - +sslv2	                enable SSLv2 (strongly advised against)
+ * - -ccert                 disable client certificate requests on the server side
+ * - +sslv2                 enable SSLv2 (strongly advised against)
  * - +sslv3                 enable SSLv3 (advised against)
  * - -tlsv1                 disable TLSv1, leaving TLSv1.1 and TLSv1.2, if supported
 */
@@ -70,17 +70,17 @@
 #endif
 
 // interposer_debug, used by DEBUGLOG(), is only valid after the first call to interposer_dlsym()
-#define ORIG_FUNC(func, rettype, args, fail)					\
-	static rettype (*orig_ ## func) args;					\
-	if (orig_ ## func == NULL) orig_ ## func = interposer_dlsym( #func );	\
-	DEBUGLOG("Intercepted call to %s\n", __func__);			\
-	if (orig_ ## func == NULL) return fail;
+#define ORIG_FUNC(func, rettype, args, fail)                    \
+    static rettype (*orig_ ## func) args;                    \
+    if (orig_ ## func == NULL) orig_ ## func = interposer_dlsym( #func );    \
+    DEBUGLOG("Intercepted call to %s\n", __func__);            \
+    if (orig_ ## func == NULL) return fail;
 
 static int   interposer_inited     = 0,
              interposer_opt_set    = (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_SINGLE_DH_USE),
-	     interposer_opt_clr    = 0,
-	     interposer_debug      = 0,
-	     interposer_tofile     = 0,
+             interposer_opt_clr    = 0,
+             interposer_debug      = 0,
+             interposer_tofile     = 0,
              interposer_no_ccert   = 0;
 static char *interposer_ssllib     = DEFAULT_SSLLIB,
             *interposer_ciphers    = DEFAULT_CIPHERS;
@@ -90,10 +90,10 @@ void interposer_log(const char *format, ...)
 {
     static char buf[1024];
     static const char *progname = NULL;
-	FILE *log = stderr;
-	va_list ap;
-	time_t t;
-	struct tm tm;
+    FILE *log = stderr;
+    va_list ap;
+    time_t t;
+    struct tm tm;
 
     // Try to obtain command name from /proc once; fall back to "?"
     if (progname == NULL) {
@@ -110,138 +110,138 @@ void interposer_log(const char *format, ...)
         }
     }
 
-	t = time(NULL);
-	localtime_r(&t, &tm);
-	// Try to interfere as little as possible with the user program's fds
-	if (interposer_tofile != 0) log = fopen(LOGFILE, "a");
-	if (log == NULL) log = stderr;
-	va_start(ap, format);
-	// Fall back to stderr on problems
-	fprintf(log, "%04d-%02d-%02d %02d:%02d:%02d tlsinterposer[%d]: ",
-		1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, getpid());
-	vfprintf(log, format, ap);
-	va_end(ap);
-	if (log != stderr) fclose(log);
+    t = time(NULL);
+    localtime_r(&t, &tm);
+    // Try to interfere as little as possible with the user program's fds
+    if (interposer_tofile != 0) log = fopen(LOGFILE, "a");
+    if (log == NULL) log = stderr;
+    va_start(ap, format);
+    // Fall back to stderr on problems
+    fprintf(log, "%04d-%02d-%02d %02d:%02d:%02d tlsinterposer[%d]: ",
+        1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, getpid());
+    vfprintf(log, format, ap);
+    va_end(ap);
+    if (log != stderr) fclose(log);
 }
 
 static void interposer_parse_opts(void)
 {
-	char *opts, *optend;
-	size_t optlen;
-	char *ciphers;
+    char *opts, *optend;
+    size_t optlen;
+    char *ciphers;
 
-	// This is only needed to improve efficiency, not correctness,
-	// so an at-least-once semantic is used (increment at the end of the function)
-	if (interposer_inited > 0) return;
+    // This is only needed to improve efficiency, not correctness,
+    // so an at-least-once semantic is used (increment at the end of the function)
+    if (interposer_inited > 0) return;
 
-	opts = getenv("TLS_INTERPOSER_OPTIONS");
-	if (opts == NULL) return;
-	/* Non-destructive strtok() clone */
-	while (*opts != '\0') {
-		optend = index(opts, ',');
-		if (optend == NULL) {
-			optlen = strlen(opts); // Until EOS
-			optend = opts + optlen;
-		} else {
-			optlen = optend - opts;
-			optend++;
-		}
-		if (strncasecmp(opts, "debug", optlen) == 0) {
-			interposer_debug++;
-		} else if (strncasecmp(opts, "logfile", optlen) == 0) {
-			interposer_tofile++;
-		} else if (strncasecmp(opts, "+sslv2", optlen) == 0) {
-			interposer_opt_set &= ~SSL_OP_NO_SSLv2;
-			interposer_opt_clr |= SSL_OP_NO_SSLv2;
-		} else if (strncasecmp(opts, "+sslv3", optlen) == 0) {
-			interposer_opt_set &= ~SSL_OP_NO_SSLv3;
-			interposer_opt_clr |= SSL_OP_NO_SSLv3;
-		} else if (strncasecmp(opts, "-tlsv1", optlen) == 0) {
-			interposer_opt_clr |= SSL_OP_NO_TLSv1;
+    opts = getenv("TLS_INTERPOSER_OPTIONS");
+    if (opts == NULL) return;
+    /* Non-destructive strtok() clone */
+    while (*opts != '\0') {
+        optend = index(opts, ',');
+        if (optend == NULL) {
+            optlen = strlen(opts); // Until EOS
+            optend = opts + optlen;
+        } else {
+            optlen = optend - opts;
+            optend++;
+        }
+        if (strncasecmp(opts, "debug", optlen) == 0) {
+            interposer_debug++;
+        } else if (strncasecmp(opts, "logfile", optlen) == 0) {
+            interposer_tofile++;
+        } else if (strncasecmp(opts, "+sslv2", optlen) == 0) {
+            interposer_opt_set &= ~SSL_OP_NO_SSLv2;
+            interposer_opt_clr |= SSL_OP_NO_SSLv2;
+        } else if (strncasecmp(opts, "+sslv3", optlen) == 0) {
+            interposer_opt_set &= ~SSL_OP_NO_SSLv3;
+            interposer_opt_clr |= SSL_OP_NO_SSLv3;
+        } else if (strncasecmp(opts, "-tlsv1", optlen) == 0) {
+            interposer_opt_clr |= SSL_OP_NO_TLSv1;
 #ifdef SSL_OP_NO_COMPRESSION
-		} else if (strncasecmp(opts, "-comp", optlen) == 0) {
-			interposer_opt_set |= SSL_OP_NO_COMPRESSION;
+        } else if (strncasecmp(opts, "-comp", optlen) == 0) {
+            interposer_opt_set |= SSL_OP_NO_COMPRESSION;
 #endif
-		} else if (strncasecmp(opts, "-ccert", optlen) == 0) {
-			interposer_no_ccert++;
-		} else if (strncasecmp(opts, "-rc4", optlen) == 0) {
-			interposer_ciphers = CIPHERS_NO_RC4;
-		} else if (optlen > 7 && strncasecmp(opts, "libssl=", 7) == 0) {
-			interposer_ssllib = opts+7;
-		} else if (interposer_debug) {
-			fprintf(stderr, "tlsinterposer.so: WARNING: Unknown option '%.*s' found in TLS_INTERPOSER_OPTIONS\n", (int)optlen, opts);
-		}
-		opts = optend;
-	}
-	// Higher priority than -rc4 above
-	ciphers = getenv("TLS_INTERPOSER_CIPHERS");
-	if (ciphers != NULL) interposer_ciphers = ciphers;
+        } else if (strncasecmp(opts, "-ccert", optlen) == 0) {
+            interposer_no_ccert++;
+        } else if (strncasecmp(opts, "-rc4", optlen) == 0) {
+            interposer_ciphers = CIPHERS_NO_RC4;
+        } else if (optlen > 7 && strncasecmp(opts, "libssl=", 7) == 0) {
+            interposer_ssllib = opts+7;
+        } else if (interposer_debug) {
+            fprintf(stderr, "tlsinterposer.so: WARNING: Unknown option '%.*s' found in TLS_INTERPOSER_OPTIONS\n", (int)optlen, opts);
+        }
+        opts = optend;
+    }
+    // Higher priority than -rc4 above
+    ciphers = getenv("TLS_INTERPOSER_CIPHERS");
+    if (ciphers != NULL) interposer_ciphers = ciphers;
 
-	interposer_inited++;
+    interposer_inited++;
 }
 
 // Get a symbol from libssl
 static void *interposer_dlsym(const char *name)
 {
-	if (interposer_inited == 0) interposer_parse_opts();
-	void *addr = dlsym(RTLD_NEXT, name);
-	if (addr == NULL) {
-		// Try again with a more specific name
-		// Needed for ejabberd
-		void *file = dlopen(interposer_ssllib, RTLD_LAZY | RTLD_GLOBAL | RTLD_NOLOAD);
-		if (file != NULL) {
-			addr = dlsym(file, name);
-			if (addr == NULL) {
-				ERRORLOG("Cannot find symbol %s in libssl %s\n", name, interposer_ssllib);
-			}
-			// Can be dlclose()d here. As it wasn't loaded (RTLD_NOLOAD), it won't be unloaded here
-			dlclose(file);
-		} else {
-			ERRORLOG("Cannot find mapped libssl %s looking for symbol %s\n", interposer_ssllib, name);
-		}
-	}
-	return addr;
+    if (interposer_inited == 0) interposer_parse_opts();
+    void *addr = dlsym(RTLD_NEXT, name);
+    if (addr == NULL) {
+        // Try again with a more specific name
+        // Needed for ejabberd
+        void *file = dlopen(interposer_ssllib, RTLD_LAZY | RTLD_GLOBAL | RTLD_NOLOAD);
+        if (file != NULL) {
+            addr = dlsym(file, name);
+            if (addr == NULL) {
+                ERRORLOG("Cannot find symbol %s in libssl %s\n", name, interposer_ssllib);
+            }
+            // Can be dlclose()d here. As it wasn't loaded (RTLD_NOLOAD), it won't be unloaded here
+            dlclose(file);
+        } else {
+            ERRORLOG("Cannot find mapped libssl %s looking for symbol %s\n", interposer_ssllib, name);
+        }
+    }
+    return addr;
 }
 
 // Make ciphers in interposer_ciphers sticky
 int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str)
 {
-	ORIG_FUNC(SSL_CTX_set_cipher_list, int, (SSL_CTX *ctx, const char *str), 0);
-	return (*orig_SSL_CTX_set_cipher_list)(ctx, interposer_ciphers);
+    ORIG_FUNC(SSL_CTX_set_cipher_list, int, (SSL_CTX *ctx, const char *str), 0);
+    return (*orig_SSL_CTX_set_cipher_list)(ctx, interposer_ciphers);
 }
 int SSL_set_cipher_list(SSL *ssl, const char *str)
 {
-	ORIG_FUNC(SSL_set_cipher_list, int, (SSL *ssl, const char *str), 0);
-	return (*orig_SSL_set_cipher_list)(ssl, interposer_ciphers);
+    ORIG_FUNC(SSL_set_cipher_list, int, (SSL *ssl, const char *str), 0);
+    return (*orig_SSL_set_cipher_list)(ssl, interposer_ciphers);
 }
 
 // Make options in interposer_opt_{set,clr} sticky
 // SSL_{CTX_,}{set,clear}_options() are actually macros which map to SSL_{CTX_,}ctrl()
 long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
 {
-	ORIG_FUNC(SSL_CTX_ctrl, long, (SSL_CTX *, int, long, void *), 0);
-	switch (cmd) {
-	case SSL_CTRL_OPTIONS:
-		larg = (larg | interposer_opt_set) & ~interposer_opt_clr;
-		break;
-	case SSL_CTRL_CLEAR_OPTIONS:
-		larg = (larg & ~interposer_opt_set) | interposer_opt_clr;
-		break;
-	}
-	return (*orig_SSL_CTX_ctrl)(ctx, cmd, larg, parg);
+    ORIG_FUNC(SSL_CTX_ctrl, long, (SSL_CTX *, int, long, void *), 0);
+    switch (cmd) {
+    case SSL_CTRL_OPTIONS:
+        larg = (larg | interposer_opt_set) & ~interposer_opt_clr;
+        break;
+    case SSL_CTRL_CLEAR_OPTIONS:
+        larg = (larg & ~interposer_opt_set) | interposer_opt_clr;
+        break;
+    }
+    return (*orig_SSL_CTX_ctrl)(ctx, cmd, larg, parg);
 }
 long SSL_ctrl(SSL *ssl, int cmd, long larg, void *parg)
 {
-	ORIG_FUNC(SSL_ctrl, long, (SSL *, int, long, void *), 0);
-	switch (cmd) {
-	case SSL_CTRL_OPTIONS:
-		larg = (larg | interposer_opt_set) & ~interposer_opt_clr;
-		break;
-	case SSL_CTRL_CLEAR_OPTIONS:
-		larg = (larg & ~interposer_opt_set) | interposer_opt_clr;
-		break;
-	}
-	return (*orig_SSL_ctrl)(ssl, cmd, larg, parg);
+    ORIG_FUNC(SSL_ctrl, long, (SSL *, int, long, void *), 0);
+    switch (cmd) {
+    case SSL_CTRL_OPTIONS:
+        larg = (larg | interposer_opt_set) & ~interposer_opt_clr;
+        break;
+    case SSL_CTRL_CLEAR_OPTIONS:
+        larg = (larg & ~interposer_opt_set) | interposer_opt_clr;
+        break;
+    }
+    return (*orig_SSL_ctrl)(ssl, cmd, larg, parg);
 }
 
 // Based on Apache's bug #49559 by Kaspar Brand
@@ -276,31 +276,31 @@ make_get_dh(rfc3526, 4096, 2)
 
 static DH *ssl_callback_TmpDH(SSL *ssl, int export, int keylen)
 {
-	EVP_PKEY *pkey = SSL_get_privatekey(ssl);
-	int type = pkey ? EVP_PKEY_type(pkey->type) : EVP_PKEY_NONE;
-	if ((type == EVP_PKEY_RSA) || (type == EVP_PKEY_DSA)) {
-		keylen = EVP_PKEY_bits(pkey);
-	}
-	if (keylen >= 4096)
-		return get_dh4096();
-	else if (keylen >= 3072)
-		return get_dh3072();
-	else if (keylen >= 2048)
-		return get_dh2048();
-	else
-		return get_dh1024();
+    EVP_PKEY *pkey = SSL_get_privatekey(ssl);
+    int type = pkey ? EVP_PKEY_type(pkey->type) : EVP_PKEY_NONE;
+    if ((type == EVP_PKEY_RSA) || (type == EVP_PKEY_DSA)) {
+        keylen = EVP_PKEY_bits(pkey);
+    }
+    if (keylen >= 4096)
+        return get_dh4096();
+    else if (keylen >= 3072)
+        return get_dh3072();
+    else if (keylen >= 2048)
+        return get_dh2048();
+    else
+        return get_dh1024();
 }
 
 void SSL_CTX_set_tmp_dh_callback(SSL_CTX *ctx, DH *(*tmp_dh_callback)(SSL *ssl, int is_export, int keylength))
 {
-	ORIG_FUNC(SSL_CTX_set_tmp_dh_callback, void, (SSL_CTX *, DH *(*)(SSL *, int, int)), /*void*/);
-	(*orig_SSL_CTX_set_tmp_dh_callback)(ctx, ssl_callback_TmpDH);
+    ORIG_FUNC(SSL_CTX_set_tmp_dh_callback, void, (SSL_CTX *, DH *(*)(SSL *, int, int)), /*void*/);
+    (*orig_SSL_CTX_set_tmp_dh_callback)(ctx, ssl_callback_TmpDH);
 }
 
 void SSL_set_tmp_dh_callback(SSL *ssl, DH *(*tmp_dh_callback)(SSL *ssl, int is_export, int keylength))
 {
-	ORIG_FUNC(SSL_set_tmp_dh_callback, void, (SSL *, DH *(*)(SSL *, int, int)), /*void*/);
-	(*orig_SSL_set_tmp_dh_callback)(ssl, ssl_callback_TmpDH);
+    ORIG_FUNC(SSL_set_tmp_dh_callback, void, (SSL *, DH *(*)(SSL *, int, int)), /*void*/);
+    (*orig_SSL_set_tmp_dh_callback)(ssl, ssl_callback_TmpDH);
 }
 // END Apache-bug derived code
 
@@ -308,26 +308,26 @@ void SSL_set_tmp_dh_callback(SSL *ssl, DH *(*tmp_dh_callback)(SSL *ssl, int is_e
 
 SSL_CTX *SSL_CTX_new(SSLCONST SSL_METHOD *method)
 {
-	ORIG_FUNC(SSL_CTX_new, SSL_CTX *, (SSLCONST SSL_METHOD *), NULL);
-	SSL_CTX *ctx = (*orig_SSL_CTX_new)(method);
-	if (ctx != NULL) {
-		SSL_CTX_set_options(ctx, interposer_opt_set);
-		SSL_CTX_clear_options(ctx, interposer_opt_clr);
-		SSL_CTX_set_cipher_list(ctx, interposer_ciphers);
-		SSL_CTX_set_tmp_dh_callback(ctx, ssl_callback_TmpDH);
-		// Based on code by Vincent Bernat
-		// - http://vincent.bernat.im/en/blog/2011-ssl-perfect-forward-secrecy.html
-		// - https://github.com/bumptech/stud/pull/61
+    ORIG_FUNC(SSL_CTX_new, SSL_CTX *, (SSLCONST SSL_METHOD *), NULL);
+    SSL_CTX *ctx = (*orig_SSL_CTX_new)(method);
+    if (ctx != NULL) {
+        SSL_CTX_set_options(ctx, interposer_opt_set);
+        SSL_CTX_clear_options(ctx, interposer_opt_clr);
+        SSL_CTX_set_cipher_list(ctx, interposer_ciphers);
+        SSL_CTX_set_tmp_dh_callback(ctx, ssl_callback_TmpDH);
+        // Based on code by Vincent Bernat
+        // - http://vincent.bernat.im/en/blog/2011-ssl-perfect-forward-secrecy.html
+        // - https://github.com/bumptech/stud/pull/61
 #ifdef NID_X9_62_prime256v1
-		EC_KEY *ecdh;
-		ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-		SSL_CTX_set_tmp_ecdh(ctx, ecdh);
-		EC_KEY_free(ecdh);
-		DEBUGLOG("ECDH Initialized with NIST P-256\n");
+        EC_KEY *ecdh;
+        ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+        SSL_CTX_set_tmp_ecdh(ctx, ecdh);
+        EC_KEY_free(ecdh);
+        DEBUGLOG("ECDH Initialized with NIST P-256\n");
 #endif
-	}
-	DEBUGLOG("SSL_CTX_new returning %p\n", ctx);
-	return ctx;
+    }
+    DEBUGLOG("SSL_CTX_new returning %p\n", ctx);
+    return ctx;
 }
 
 /* ========================== Handling "-ccert" */
