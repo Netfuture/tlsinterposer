@@ -24,4 +24,5 @@ Changes
 1.3.0   2014-07-05
         Removed (IMHO useless) -ecdhe option, reenabled ECDHE always
         More ciphers with OpenSSL 0.9.8
+        New "-ccert" option
 

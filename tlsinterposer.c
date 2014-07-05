@@ -41,7 +41,7 @@
  * - ssllib=                full name of libssl.so.X.Y.Z
  * - -comp                  disable compression
  * - -rc4                   remove RC4 from default (!) ciphers
- * - -ecdhe                 disable forward secrecy
+ * - -ccert         disable client certificate requests on the server side
  * - +sslv2	                enable SSLv2 (strongly advised against)
  * - +sslv3                 enable SSLv3 (advised against)
  * - -tlsv1                 disable TLSv1, leaving TLSv1.1 and TLSv1.2, if supported
@@ -80,9 +80,10 @@ static int   interposer_inited     = 0,
              interposer_opt_set    = (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_SINGLE_DH_USE),
 	     interposer_opt_clr    = 0,
 	     interposer_debug      = 0,
-	     interposer_tofile     = 0;
+	     interposer_tofile     = 0,
+             interposer_no_ccert   = 0;
 static char *interposer_ssllib     = DEFAULT_SSLLIB,
-	    *interposer_ciphers    = DEFAULT_CIPHERS;
+            *interposer_ciphers    = DEFAULT_CIPHERS;
 
 void interposer_log(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
 void interposer_log(const char *format, ...)
@@ -144,6 +145,8 @@ static void interposer_parse_opts(void)
 		} else if (strncasecmp(opts, "-comp", optlen) == 0) {
 			interposer_opt_set |= SSL_OP_NO_COMPRESSION;
 #endif
+		} else if (strncasecmp(opts, "-ccert", optlen) == 0) {
+			interposer_no_ccert++;
 		} else if (strncasecmp(opts, "-rc4", optlen) == 0) {
 			interposer_ciphers = CIPHERS_NO_RC4;
 		} else if (optlen > 7 && strncasecmp(opts, "libssl=", 7) == 0) {
@@ -284,7 +287,8 @@ void SSL_set_tmp_dh_callback(SSL *ssl, DH *(*tmp_dh_callback)(SSL *ssl, int is_e
 }
 // END Apache-bug derived code
 
-// OVERRIDE: Our version, overrides the libssl one
+/* ========================== Handling most options and ciphers */
+
 SSL_CTX *SSL_CTX_new(SSLCONST SSL_METHOD *method)
 {
 	ORIG_FUNC(SSL_CTX_new, SSL_CTX *, (SSLCONST SSL_METHOD *), NULL);
@@ -307,4 +311,45 @@ SSL_CTX *SSL_CTX_new(SSLCONST SSL_METHOD *method)
 	}
 	DEBUGLOG("SSL_CTX_new returning %p\n", ctx);
 	return ctx;
+}
+
+/* ========================== Handling "-ccert" */
+
+/* When intercepting SSL_CTX_set_verify(), two modes of server operations possible:
+ * - SSL_CTX does not have accept/connect information, it is set only after SSL_new():
+ *   SSL_set_accept_state() and SSL_set_verify() need to be intercepted anyway
+ * - SSL_CTX has accept/connect, SSL_new() "clones" from SSL_CTX:
+ *   SSL_set_accept_state() and SSL_set_verify() may not be called,
+ *   everything is handled in SSL_new()
+ * So there is no need to intercept SSL_CTX_verify(), especially as
+ * SSL_is_server() might be changed later, which would result in data loss
+ */
+void SSL_set_verify(SSL *s, int mode,
+                    int (*verify_callback)(int, X509_STORE_CTX *))
+{
+    ORIG_FUNC(SSL_set_verify, void, (SSL *, int, int (*)(int, X509_STORE_CTX *)), /*void*/);
+    if (interposer_no_ccert != 0 && s->server != 0) {
+        // Disable requesting the client certificate
+        mode = SSL_VERIFY_NONE;
+    }
+    (*orig_SSL_set_verify)(s, mode, verify_callback);
+}
+
+void SSL_set_accept_state(SSL *s)
+{
+    ORIG_FUNC(SSL_set_accept_state, void, (SSL *), /*void*/);
+    (*orig_SSL_set_accept_state)(s);
+    if (interposer_no_ccert) {
+        SSL_set_verify(s, SSL_VERIFY_NONE, NULL); // NULL indicates no change, phew!
+    }
+}
+
+SSL *SSL_new(SSL_CTX *ctx)
+{
+    ORIG_FUNC(SSL_new, SSL *, (SSL_CTX *), NULL);
+    SSL *s = (*orig_SSL_new)(ctx);
+    if (s != NULL && interposer_no_ccert != 0 && s->server != 0) {
+        SSL_set_verify(s, SSL_VERIFY_NONE, NULL); // NULL indicates no change, phew!
+    }
+    return s;
 }
