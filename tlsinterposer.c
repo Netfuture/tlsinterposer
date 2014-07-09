@@ -135,7 +135,7 @@ static void interposer_parse_opts(void)
     if (interposer_inited > 0) return;
 
     opts = getenv("TLS_INTERPOSER_OPTIONS");
-    if (opts == NULL) return;
+    if (opts == NULL) opts = "";
     /* Non-destructive strtok() clone */
     while (*opts != '\0') {
         optend = index(opts, ',');
