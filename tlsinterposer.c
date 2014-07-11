@@ -135,7 +135,7 @@ static void interposer_parse_opts(void)
     if (interposer_inited > 0) return;
 
     opts = getenv("TLS_INTERPOSER_OPTIONS");
-    if (opts == NULL) return;
+    if (opts == NULL) opts = "";
     /* Non-destructive strtok() clone */
     while (*opts != '\0') {
         optend = index(opts, ',');
@@ -157,7 +157,7 @@ static void interposer_parse_opts(void)
             interposer_opt_set &= ~SSL_OP_NO_SSLv3;
             interposer_opt_clr |= SSL_OP_NO_SSLv3;
         } else if (strncasecmp(opts, "-tlsv1", optlen) == 0) {
-            interposer_opt_clr |= SSL_OP_NO_TLSv1;
+            interposer_opt_set |= SSL_OP_NO_TLSv1;
 #ifdef SSL_OP_NO_COMPRESSION
         } else if (strncasecmp(opts, "-comp", optlen) == 0) {
             interposer_opt_set |= SSL_OP_NO_COMPRESSION;

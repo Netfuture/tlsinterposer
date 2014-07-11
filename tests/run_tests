@@ -1,0 +1,134 @@
+#!/bin/bash
+PORT=11111
+
+
+pushd $(dirname "${0}") > /dev/null
+make simple_server
+cd ..
+HOME=$(pwd -L) # http://stackoverflow.com/a/2473033/743624
+popd > /dev/null
+
+start_server_standard() {
+    $HOME/tests/simple_server $PORT >/dev/null 2>&1 &
+    if [[ $? != 0 ]]; then
+        echo "server failed"
+        exit 255
+    fi
+    sleep 0.1 # make sure the server is listening. fractional seconds is a GNU extension though
+}
+start_server_tlsi() {
+    # $1 = environment variable assignments
+    env LD_PRELOAD=$HOME/libtlsinterposer.so $1 $HOME/tests/simple_server $PORT >/dev/null 2>&1 &
+    if [[ $? != 0 ]]; then
+        echo "server w/ tlsinterposer failed"
+        exit 255
+    fi
+    sleep 0.1
+}
+regexp_test() {
+    # $1 = test identifier
+    # $2 = passing regexp
+    # $3 = (optional) args for openssl s_client
+    echo -e -n "Test $1\t\t\t"
+    out=$(echo $1 | openssl s_client -ign_eof $3 -connect localhost:$PORT 2>&1)
+    if echo "$out" | grep -q -z "$2"; then
+        echo "pass"
+    else
+        echo "FAIL!"
+        #echo "Output was:"
+        #echo "$out"
+        #exit 255
+    fi
+}
+
+
+
+## 1. Cipher upgrade
+## 1a. Verify hardcoded cipher.
+start_server_standard
+regexp_test 1a "\sNew, [TLSv123./]*, Cipher is AES128-SHA.*echo: 1a\sread:errno=0\s$"
+
+## 1b. Check that tlsinterposer overrides the application's cipher,
+## and that the defaults choose ECDHE (this may be dependent on the system running the test, though)
+start_server_tlsi ""
+regexp_test 1b "\sNew, [TLSv123./]*, Cipher is ECDHE-RSA-AES256-SHA.*echo: 1b\sread:errno=0\s$"
+
+## 1c. Check that tlsinterposer accepts alternate cipherlists. Use DHE to ensure that works without any awareness from the app.
+start_server_tlsi "TLS_INTERPOSER_CIPHERS=DHE-RSA-AES256-SHA"
+regexp_test 1c "\sNew, [TLSv123./]*, Cipher is DHE-RSA-AES256-SHA.*echo: 1c\sread:errno=0\s$"
+
+## 1d. See that an obscure, low-quality one fails.  Choosing this as another check that overriding really works.
+## Both client and server need the override, but the handshake fails if the server doesn't have it.
+start_server_tlsi ""
+regexp_test 1d "alert handshake failure"        "-cipher ADH-DES-CBC-SHA"
+
+## 1e. Tell tlsinterposer to allow it, check.
+start_server_tlsi "TLS_INTERPOSER_CIPHERS=ADH-DES-CBC-SHA"
+regexp_test 1e "\sNew, [TLSv123./]*, Cipher is ADH-DES-CBC-SHA.*echo: 1e\sread:errno=0\s$"        "-cipher ADH-DES-CBC-SHA"
+
+
+
+## 2. -ccert option
+## s_client can send a cert if asked by the server. The test server does ask, so check that
+## normal operation causes the cert to be used, then turn on the option and ensure it doesn't.
+
+## 2a. Check standard behavior
+start_server_standard
+regexp_test 2a "\s---\sclient cert: /CN=test-cert\secho: 2a\sread:errno=0\s$"        "-cert $HOME/tests/test-cert.pem"
+
+## 2b. Check that default tlsinterposer doesn't change that
+start_server_tlsi ""
+regexp_test 2b "\s---\sclient cert: /CN=test-cert\secho: 2b\sread:errno=0\s$"        "-cert $HOME/tests/test-cert.pem"
+
+## 2c. Tell tlsinterposer to disable client cert, check
+start_server_tlsi "TLS_INTERPOSER_OPTIONS=-ccert"
+regexp_test 2c "\s---\secho: 2c\sread:errno=0\s$"        "-cert $HOME/tests/test-cert.pem"
+
+
+
+## 3. -rc4 option
+## 3a. Test without -rc4
+start_server_tlsi ""
+regexp_test 3a "\sNew, [TLSv123./]*, Cipher is RC4-SHA.*echo: 3a\sread:errno=0\s$"        "-cipher RC4-SHA"
+
+## 3b. Test with -rc4
+start_server_tlsi "TLS_INTERPOSER_OPTIONS=-rc4"
+regexp_test 3b "alert handshake failure"        "-cipher RC4-SHA"
+
+
+
+## +sslv3
+## 4a. standard, forced v3 should work
+start_server_standard
+regexp_test 4a "\sProtocol\s\\+: SSLv3.*echo: 4a\sread:errno=0\s$"    "-ssl3"
+
+## 4b. with tlsinterposer, without +sslv3 a forced v3 conn should fail
+start_server_tlsi ""
+regexp_test 4b "alert handshake failure"    "-ssl3"
+
+## 4c. add +sslv3 and see that it works
+start_server_tlsi "TLS_INTERPOSER_OPTIONS=+sslv3"
+regexp_test 4c "\sProtocol\s\\+: SSLv3.*echo: 4c\sread:errno=0\s$"    "-ssl3"
+
+
+
+## 5. -tlsv1
+## 5a. standard
+start_server_standard
+regexp_test 5a "\sProtocol\s\\+: TLSv1.*echo: 5a\sread:errno=0\s$"    "-tls1"
+
+## 5b. default tlsinterposer
+start_server_tlsi ""
+regexp_test 5b "\sProtocol\s\\+: TLSv1.*echo: 5b\sread:errno=0\s$"    "-tls1"
+
+## 5c. -tlsv1, should fail handshake
+start_server_tlsi "TLS_INTERPOSER_OPTIONS=-tlsv1"
+regexp_test 5c "write:errno=[^0]"    "-tls1"
+
+## 5d. -tlsv1 with v1.1 client
+start_server_tlsi "TLS_INTERPOSER_OPTIONS=-tlsv1"
+regexp_test 5d "\sProtocol\s\\+: TLSv1\\.1.*echo: 5d\sread:errno=0\s$"    "-tls1_1"
+
+
+## TODO -comp option? I can't get compression to turn on -- it may be disabled in my release on Ubuntu
+## TODO +sslv2? My Ubuntu build seems to have v2 disabled.
