@@ -42,6 +42,7 @@
  * - -comp                  disable compression
  * - -rc4                   remove RC4 from default (!) ciphers
  * - -ccert                 disable client certificate requests on the server side
+ * - +sorder                honor server cipher order
  * - +sslv2                 enable SSLv2 (strongly advised against)
  * - +sslv3                 enable SSLv3 (advised against)
  * - -tlsv1                 disable TLSv1, leaving TLSv1.1 and TLSv1.2, if supported
@@ -164,6 +165,8 @@ static void interposer_parse_opts(void)
 #endif
         } else if (strncasecmp(opts, "-ccert", optlen) == 0) {
             interposer_no_ccert++;
+        } else if (strncasecmp(opts, "+scert", optlen) == 0) {
+            interposer_opt_set |= SSL_OP_CIPHER_SERVER_PREFERENCE;
         } else if (strncasecmp(opts, "-rc4", optlen) == 0) {
             interposer_ciphers = CIPHERS_NO_RC4;
         } else if (optlen > 7 && strncasecmp(opts, "libssl=", 7) == 0) {
