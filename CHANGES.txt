@@ -29,3 +29,5 @@ Changes
 
 1.3.1	2014-11-xx (unreleased)
         New option "-sorder" (honor server cipher order)
+	More flexible openssl library version parsing
+	
