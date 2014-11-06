@@ -19,6 +19,7 @@ Environment Variables
   - `ssllib=`: Full name of libssl.so.X.Y.Z, if not autodetected correctly
   - `-comp`: Disable compression
   - `-ccert`: Prevent the server from asking for client certificates
+  - `+sorder`: Force server cipher order, aka tls_preempt_cipherlist (Postfix) or SSLHonorCipherOrder (Apache httpd)
   - `-rc4`: Changes the default ciphers from Qualys recommendations with to without RC4 (has no effect on TLS_INTERPOSER_CIPHERS)
   - `-tlsv1`: Disable TLSv1, leaving TLSv1.1 and TLSv1.2, if supported
   - `+sslv3`: Reenable SSLv3 (advised against)
