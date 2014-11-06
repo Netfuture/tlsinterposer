@@ -165,7 +165,7 @@ static void interposer_parse_opts(void)
 #endif
         } else if (strncasecmp(opts, "-ccert", optlen) == 0) {
             interposer_no_ccert++;
-        } else if (strncasecmp(opts, "+scert", optlen) == 0) {
+        } else if (strncasecmp(opts, "+sorder", optlen) == 0) {
             interposer_opt_set |= SSL_OP_CIPHER_SERVER_PREFERENCE;
         } else if (strncasecmp(opts, "-rc4", optlen) == 0) {
             interposer_ciphers = CIPHERS_NO_RC4;
