@@ -46,6 +46,7 @@
  * - +sslv2                 enable SSLv2 (strongly advised against)
  * - +sslv3                 enable SSLv3 (advised against)
  * - -tlsv1                 disable TLSv1, leaving TLSv1.1 and TLSv1.2, if supported
+ * - -append                append ciphers given via env variable to default ciphers
 */
 
 #ifdef SSL_OP_NO_COMPRESSION // OpenSSL 1.0.0 or newer?
@@ -130,6 +131,8 @@ static void interposer_parse_opts(void)
     char *opts, *optend;
     size_t optlen;
     char *ciphers;
+    int append_ciphers = 0;
+    char *concat_ciphers = NULL;
 
     // This is only needed to improve efficiency, not correctness,
     // so an at-least-once semantic is used (increment at the end of the function)
@@ -169,6 +172,8 @@ static void interposer_parse_opts(void)
             interposer_opt_set |= SSL_OP_CIPHER_SERVER_PREFERENCE;
         } else if (strncasecmp(opts, "-rc4", optlen) == 0) {
             interposer_ciphers = CIPHERS_NO_RC4;
+        } else if (strncasecmp(opts, "-append", optlen) == 0) {
+            append_ciphers = 1;
         } else if (optlen > 7 && strncasecmp(opts, "libssl=", 7) == 0) {
             interposer_ssllib = opts+7;
         } else if (interposer_debug) {
@@ -178,7 +183,21 @@ static void interposer_parse_opts(void)
     }
     // Higher priority than -rc4 above
     ciphers = getenv("TLS_INTERPOSER_CIPHERS");
-    if (ciphers != NULL) interposer_ciphers = ciphers;
+    if (ciphers != NULL) {
+        if (append_ciphers) {
+            concat_ciphers = malloc(strlen(interposer_ciphers) + strlen(ciphers) + 2);
+            if (!concat_ciphers) {
+                fprintf(stderr, "malloc() failed: insufficient memory!\n");
+                exit(1);
+            }
+            strcpy(concat_ciphers, interposer_ciphers);
+            strcat(concat_ciphers, " ");
+            strcat(concat_ciphers, ciphers);
+            interposer_ciphers = concat_ciphers;
+        } else {
+            interposer_ciphers = ciphers;
+        }
+    }
 
     interposer_inited++;
 }
