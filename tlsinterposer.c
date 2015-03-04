@@ -86,7 +86,7 @@ static int   interposer_inited     = 0,
              interposer_tofile     = 0,
              interposer_no_ccert   = 0;
 static char  interposer_ssllib[LIBNAME_MAX] = DEFAULT_SSLLIB,
-             interposer_ciphers[LIBNAME_MAX]= DEFAULT_CIPHERS;
+            *interposer_ciphers    = DEFAULT_CIPHERS;
 
 void interposer_log(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
 void interposer_log(const char *format, ...)
@@ -126,6 +126,16 @@ void interposer_log(const char *format, ...)
     vfprintf(log, format, ap);
     va_end(ap);
     if (log != stderr) fclose(log);
+}
+
+static int interposer_optcopy(char *dst, const char *src, size_t dstlen, size_t srclen) {
+	if (srclen >= dstlen) {
+		return 0;
+	} else {
+		strncpy(dst, src, srclen);
+		dst[srclen] = '\0';
+		return 1;
+	}
 }
 
 static void interposer_parse_opts(void)
@@ -172,13 +182,11 @@ static void interposer_parse_opts(void)
             interposer_opt_set |= SSL_OP_CIPHER_SERVER_PREFERENCE;
         } else if (strncasecmp(opts, "-rc4", optlen) == 0) {
             interposer_ciphers = CIPHERS_NO_RC4;
-#define LIBSSLLEN 7
-        } else if (optlen > LIBSSLLEN && strncasecmp(opts, "libssl=", LIBSSLLEN) == 0) {
-			if (optlen-LIBSSLLEN >= LIBNAME_MAX) {
-				ERRORLOG("WARING: Library name for %.*s too long\n", (int)optlen, opts);
-			} else {
-	            interposer_ssllib = opts+LIBSSLLEN;
-			}
+	    } else if (optlen > 7 &&
+	               strncasecmp(opts, "libssl=", 7) == 0) {
+	      if (!interposer_optcopy(opdns_libssl, opts + 7, LIBNAME_MAX, optlen - 7)) {
+	          ERRORLOG("WARING: Library name for %.*s too long in TLS_INTERPOSER_OPTIONS -- ignored\n", (int)optlen, opts);
+	      }
         } else {
             ERRORLOG("WARNING: Unknown option '%.*s' found in TLS_INTERPOSER_OPTIONS\n", (int)optlen, opts);
         }
