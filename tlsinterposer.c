@@ -38,7 +38,7 @@
  * TLS_INTERPOSER_OPTIONS   comma-separated list of options
  * - debug                  be verbose
  * - logfile                log to /var/log/tlsinterposer.log instead of stderr
- * - ssllib=                full name of libssl.so.X.Y.Z
+ * - libssl=                full name of libssl.so.X.Y.Z
  * - -comp                  disable compression
  * - -rc4                   remove RC4 from default (!) ciphers
  * - -ccert                 disable client certificate requests on the server side

@@ -16,7 +16,7 @@ Environment Variables
 * `TLS_INTERPOSER_OPTIONS`: Comma-separated list of options
   - `debug`: Be verbose, by default on stderr
   - `logfile`: Log to /var/log/tlsinterposer.log; fall back to stderr
-  - `ssllib=`: Full name of libssl.so.X.Y.Z, if not autodetected correctly
+  - `libssl=`: Full name of libssl.so.X.Y.Z, if not autodetected correctly
   - `-comp`: Disable compression
   - `-ccert`: Prevent the server from asking for client certificates
   - `+sorder`: Force server cipher order, aka tls_preempt_cipherlist (Postfix) or SSLHonorCipherOrder (Apache httpd)
