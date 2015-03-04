@@ -48,6 +48,8 @@
  * - -tlsv1                 disable TLSv1, leaving TLSv1.1 and TLSv1.2, if supported
 */
 
+#define LIBNAME_MAX 50
+
 #ifdef SSL_OP_NO_COMPRESSION // OpenSSL 1.0.0 or newer?
 // Qualys recommendation (I know the RC4 part could be simplified)
 // - https://community.qualys.com/blogs/securitylabs/2013/08/05/configuring-apache-nginx-and-openssl-for-forward-secrecy
@@ -83,8 +85,8 @@ static int   interposer_inited     = 0,
              interposer_debug      = 0,
              interposer_tofile     = 0,
              interposer_no_ccert   = 0;
-static char *interposer_ssllib     = DEFAULT_SSLLIB,
-            *interposer_ciphers    = DEFAULT_CIPHERS;
+static char  interposer_ssllib[LIBNAME_MAX] = DEFAULT_SSLLIB,
+             interposer_ciphers[LIBNAME_MAX]= DEFAULT_CIPHERS;
 
 void interposer_log(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
 void interposer_log(const char *format, ...)
@@ -118,8 +120,9 @@ void interposer_log(const char *format, ...)
     if (log == NULL) log = stderr;
     va_start(ap, format);
     // Fall back to stderr on problems
-    fprintf(log, "%04d-%02d-%02d %02d:%02d:%02d tlsinterposer[%d]: ",
-        1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, getpid());
+    fprintf(log, "%04d-%02d-%02d %02d:%02d:%02d tlsinterposer/%s[%d]: ",
+        1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,
+		progname, getpid());
     vfprintf(log, format, ap);
     va_end(ap);
     if (log != stderr) fclose(log);
@@ -169,10 +172,15 @@ static void interposer_parse_opts(void)
             interposer_opt_set |= SSL_OP_CIPHER_SERVER_PREFERENCE;
         } else if (strncasecmp(opts, "-rc4", optlen) == 0) {
             interposer_ciphers = CIPHERS_NO_RC4;
-        } else if (optlen > 7 && strncasecmp(opts, "libssl=", 7) == 0) {
-            interposer_ssllib = opts+7;
-        } else if (interposer_debug) {
-            fprintf(stderr, "tlsinterposer.so: WARNING: Unknown option '%.*s' found in TLS_INTERPOSER_OPTIONS\n", (int)optlen, opts);
+#define LIBSSLLEN 7
+        } else if (optlen > LIBSSLLEN && strncasecmp(opts, "libssl=", LIBSSLLEN) == 0) {
+			if (optlen-LIBSSLLEN >= LIBNAME_MAX) {
+				ERRORLOG("WARING: Library name for %.*s too long\n", (int)optlen, opts);
+			} else {
+	            interposer_ssllib = opts+LIBSSLLEN;
+			}
+        } else {
+            ERRORLOG("WARNING: Unknown option '%.*s' found in TLS_INTERPOSER_OPTIONS\n", (int)optlen, opts);
         }
         opts = optend;
     }
