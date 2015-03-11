@@ -29,7 +29,7 @@
 #include <openssl/ssl.h>
 #include <openssl/dh.h>
 #include <dlfcn.h>
-#include "ssl-version.h"
+#include "libssl-version.h"
 
 /* Environment variables used
  * ==========================
@@ -85,7 +85,7 @@ static int   interposer_inited     = 0,
              interposer_debug      = 0,
              interposer_tofile     = 0,
              interposer_no_ccert   = 0;
-static char  interposer_ssllib[LIBNAME_MAX] = DEFAULT_SSLLIB,
+static char  interposer_libssl[LIBNAME_MAX] = DEFAULT_LIBSSL,
             *interposer_ciphers    = DEFAULT_CIPHERS;
 
 void interposer_log(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
@@ -184,7 +184,7 @@ static void interposer_parse_opts(void)
             interposer_ciphers = CIPHERS_NO_RC4;
 	    } else if (optlen > 7 &&
 	               strncasecmp(opts, "libssl=", 7) == 0) {
-	      if (!interposer_optcopy(opdns_libssl, opts + 7, LIBNAME_MAX, optlen - 7)) {
+	      if (!interposer_optcopy(interposer_libssl, opts + 7, LIBNAME_MAX, optlen - 7)) {
 	          ERRORLOG("WARING: Library name for %.*s too long in TLS_INTERPOSER_OPTIONS -- ignored\n", (int)optlen, opts);
 	      }
         } else {
@@ -207,16 +207,16 @@ static void *interposer_dlsym(const char *name)
     if (addr == NULL) {
         // Try again with a more specific name
         // Needed for ejabberd
-        void *file = dlopen(interposer_ssllib, RTLD_LAZY | RTLD_GLOBAL | RTLD_NOLOAD);
+        void *file = dlopen(interposer_libssl, RTLD_LAZY | RTLD_GLOBAL | RTLD_NOLOAD);
         if (file != NULL) {
             addr = dlsym(file, name);
             if (addr == NULL) {
-                ERRORLOG("Cannot find symbol %s in libssl %s\n", name, interposer_ssllib);
+                ERRORLOG("Cannot find symbol %s in libssl %s\n", name, interposer_libssl);
             }
             // Can be dlclose()d here. As it wasn't loaded (RTLD_NOLOAD), it won't be unloaded here
             dlclose(file);
         } else {
-            ERRORLOG("Cannot find mapped libssl %s looking for symbol %s\n", interposer_ssllib, name);
+            ERRORLOG("Cannot find mapped libssl %s looking for symbol %s\n", interposer_libssl, name);
         }
     }
     return addr;
