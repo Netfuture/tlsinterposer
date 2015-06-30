@@ -38,6 +38,7 @@
  * TLS_INTERPOSER_OPTIONS   comma-separated list of options
  * - debug                  be verbose
  * - logfile                log to /var/log/tlsinterposer.log instead of stderr
+ * - append                 append ciphers given via env variable to default ciphers
  * - libssl=                full name of libssl.so.X.Y.Z
  * - -comp                  disable compression
  * - -rc4                   remove RC4 from default (!) ciphers
@@ -49,6 +50,7 @@
 */
 
 #define LIBNAME_MAX 50
+#define CIPHERSTRING_MAX 500
 
 #ifdef SSL_OP_NO_COMPRESSION // OpenSSL 1.0.0 or newer?
 // Qualys recommendation (I know the RC4 part could be simplified)
@@ -86,6 +88,7 @@ static int   interposer_inited     = 0,
              interposer_tofile     = 0,
              interposer_no_ccert   = 0;
 static char  interposer_libssl[LIBNAME_MAX] = DEFAULT_LIBSSL,
+             interposer_cipherstring[CIPHERSTRING_MAX],
             *interposer_ciphers    = DEFAULT_CIPHERS;
 
 void interposer_log(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
@@ -143,6 +146,7 @@ static void interposer_parse_opts(void)
     char *opts, *optend;
     size_t optlen;
     char *ciphers;
+    int append_ciphers = 0;
 
     // This is only needed to improve efficiency, not correctness,
     // so an at-least-once semantic is used (increment at the end of the function)
@@ -182,11 +186,13 @@ static void interposer_parse_opts(void)
             interposer_opt_set |= SSL_OP_CIPHER_SERVER_PREFERENCE;
         } else if (strncasecmp(opts, "-rc4", optlen) == 0) {
             interposer_ciphers = CIPHERS_NO_RC4;
-	    } else if (optlen > 7 &&
-	               strncasecmp(opts, "libssl=", 7) == 0) {
-	      if (!interposer_optcopy(interposer_libssl, opts + 7, LIBNAME_MAX, optlen - 7)) {
-	          ERRORLOG("WARING: Library name for %.*s too long in TLS_INTERPOSER_OPTIONS -- ignored\n", (int)optlen, opts);
-	      }
+        } else if (strncasecmp(opts, "append", optlen) == 0) {
+            append_ciphers = 1;
+        } else if (optlen > 7 &&
+            strncasecmp(opts, "libssl=", 7) == 0) {
+            if (!interposer_optcopy(interposer_libssl, opts + 7, LIBNAME_MAX, optlen - 7)) {
+                ERRORLOG("WARING: Library name for %.*s too long in TLS_INTERPOSER_OPTIONS -- ignored\n", (int)optlen, opts);
+            }
         } else {
             ERRORLOG("WARNING: Unknown option '%.*s' found in TLS_INTERPOSER_OPTIONS\n", (int)optlen, opts);
         }
@@ -194,7 +200,20 @@ static void interposer_parse_opts(void)
     }
     // Higher priority than -rc4 above
     ciphers = getenv("TLS_INTERPOSER_CIPHERS");
-    if (ciphers != NULL) interposer_ciphers = ciphers;
+    if (ciphers != NULL) {
+        if (append_ciphers) {
+            if (strlen(interposer_ciphers) + strlen(ciphers) + 2 > CIPHERSTRING_MAX) {
+                ERRORLOG("WARNING: append ciphers too long, using built-in default\n");
+            } else {
+            strcpy(interposer_cipherstring, interposer_ciphers);
+            strcat(interposer_cipherstring, " ");
+            strcat(interposer_cipherstring, ciphers);
+            interposer_ciphers = interposer_cipherstring;
+	    }
+        } else {
+            interposer_ciphers = ciphers;
+        }
+    }
 
     interposer_inited++;
 }
